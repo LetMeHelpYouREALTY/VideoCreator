@@ -1,58 +1,106 @@
 # VideoCreator
 
-Live conversational video for Dr. Jan Duffy at Berkshire Hathaway HomeServices Nevada Properties. Tavus renders the face. The Next.js app starts a CVI conversation. An optional LiveKit worker can run STT, LLM, and TTS while Tavus joins the same room as the avatar.
+Live conversational video for Dr. Jan Duffy at Berkshire Hathaway HomeServices Nevada Properties.
+
+The happy path is the [API Conversation Quickstart](https://docs.tavus.io/sections/conversational-video-interface/quickstart/cvi-quickstart) wrapped in a Next.js app per the [CVI App Quickstart](https://docs.tavus.io/sections/conversational-video-interface/quickstart/build-first-app):
+
+1. Create a full-pipeline PAL.
+2. Create a conversation with that `pal_id`.
+3. Join `conversation_url`. End the conversation when the user leaves.
+
+`TAVUS_API_KEY` stays on the server. The browser never sees it.
 
 Office: 8850 W. Sunset Road, Suite 200, Las Vegas, NV 89148. Call 702-222-1964.
 
-## Two paths
+## Step 1: Create a PAL
 
-### 1. Tavus CVI (full pipeline)
-
-Use this for the in-browser studio at `/studio`.
-
-1. Create a PAL with `pipeline_mode: "full"`, Phoenix face `r90bbd427f71`, `raven-1` perception, and `sparrow-1` turn-taking.
-2. Create a conversation with that `pal_id`.
-3. Join the returned `conversation_url` through `@tavus/cvi-ui` `CVIProvider` + `Conversation`.
-
-The API key stays on the server. The browser calls `POST /api/tavus`.
-
-### 2. LiveKit Agent (Tavus face)
-
-Use this when LiveKit should own the voice pipeline.
-
-1. Install `agent/` dependencies.
-2. Set LiveKit and Tavus credentials in `agent/.env.local`.
-3. Run `npm run agent:dev`.
-4. The worker starts `tavus.AvatarSession` with `faceId` **before** `AgentSession.start`.
-
-Optional: create an echo-mode PAL with `layers.transport.transport_type: "livekit"` and set `TAVUS_PAL_ID`. If omitted, the plugin uses a stock LiveKit PAL.
-
-## Setup
+Phoenix-4 Pro face `r90bbd427f71` (stock Anna), `raven-1` perception, `sparrow-1` turn-taking with high patience:
 
 ```bash
-cp .env.example .env.local
-npm install
+curl --request POST \
+  --url https://tavusapi.com/v2/pals \
+  --header 'Content-Type: application/json' \
+  --header "x-api-key: $TAVUS_API_KEY" \
+  --data '{
+    "pal_name": "Interviewer",
+    "system_prompt": "As an Interviewer, you are a skilled professional who conducts thoughtful and structured interviews. Your aim is to ask insightful questions, listen carefully, and assess responses objectively to identify the best candidates.",
+    "pipeline_mode": "full",
+    "context": "You have a track record of conducting interviews that put candidates at ease, draw out their strengths, and help organizations make excellent hiring decisions.",
+    "default_face_id": "r90bbd427f71",
+    "layers": {
+      "perception": {
+        "perception_model": "raven-1"
+      },
+      "conversational_flow": {
+        "turn_detection_model": "sparrow-1",
+        "turn_taking_patience": "high",
+        "pal_interruptibility": "medium"
+      }
+    }
+  }'
 ```
 
-Create a PAL (server-side):
+Or from this app (default kind is `interviewer`):
 
 ```bash
 curl --request POST \
   --url http://localhost:3000/api/tavus/pal \
   --header 'Content-Type: application/json' \
   --header "x-setup-token: $TAVUS_SETUP_TOKEN" \
-  --data '{"kind":"full"}'
+  --data '{"kind":"interviewer"}'
 ```
 
-Put the returned `pal_id` in `.env.local` as `TAVUS_PAL_ID`.
+Put the returned `pal_id` in `.env.local` as `TAVUS_PAL_ID`. If you skip this, the studio uses stock PAL `pcb7a34da5fe`.
+
+`kind` values: `interviewer` (docs example), `full` (Las Vegas realtor PAL), `livekit` (echo transport for the optional worker).
+
+## Step 2: Create a conversation
 
 ```bash
+curl --request POST \
+  --url https://tavusapi.com/v2/conversations \
+  --header 'Content-Type: application/json' \
+  --header "x-api-key: $TAVUS_API_KEY" \
+  --data '{
+    "pal_id": "<your_pal_id>",
+    "conversation_name": "Interview User"
+  }'
+```
+
+The studio does the same through `POST /api/tavus`. If the PAL already has `default_face_id`, only `pal_id` is sent.
+
+Use `test_mode: true` while wiring the integration. Tavus returns `status: "ended"` and the PAL does not join, so it does not count toward billing.
+
+## Step 3: Join conversation_url
+
+The create response includes the join URL:
+
+```json
+{
+  "conversation_id": "c477c9dd7aa6e4fe",
+  "conversation_name": "Interview User",
+  "conversation_url": "<conversation_link>",
+  "status": "active",
+  "callback_url": "",
+  "created_at": "2025-05-13T06:42:58.291561Z"
+}
+```
+
+`/studio` embeds that URL with `CVIProvider` + `Conversation` from the Tavus CVI UI examples. Leaving the call hits End Conversation.
+
+## Setup
+
+```bash
+cp .env.example .env.local
+npm install
 npm run dev
 ```
 
 Open [http://localhost:3000/studio](http://localhost:3000/studio).
 
-### LiveKit worker
+## LiveKit (optional)
+
+LiveKit is not the recommended CVI path. Use it only if you already run a LiveKit Agents pipeline and want Tavus as the avatar renderer.
 
 ```bash
 cp agent/.env.example agent/.env.local
@@ -60,32 +108,24 @@ npm run agent:install
 npm run agent:dev
 ```
 
+Create a separate echo PAL (`{"kind":"livekit"}`) and set `TAVUS_LIVEKIT_PAL_ID`. Do not reuse the full-pipeline PAL.
+
 ## Environment
 
-| Variable | Where | Purpose |
-| --- | --- | --- |
-| `TAVUS_API_KEY` | server | Tavus `x-api-key`. Never expose to the browser. |
-| `TAVUS_PAL_ID` | server / agent | Full-pipeline PAL for CVI, or echo PAL for LiveKit. |
-| `TAVUS_FACE_ID` | server / agent | Defaults to stock Anna `r90bbd427f71`. |
-| `TAVUS_SETUP_TOKEN` | server | Optional guard for `POST /api/tavus/pal`. |
-| `LIVEKIT_URL` | agent | LiveKit Cloud or self-hosted URL. |
-| `LIVEKIT_API_KEY` | agent | LiveKit API key. |
-| `LIVEKIT_API_SECRET` | agent | LiveKit API secret. |
+| Variable | Purpose |
+| --- | --- |
+| `TAVUS_API_KEY` | Server-only Tavus `x-api-key`. |
+| `TAVUS_PAL_ID` | Full-pipeline PAL. Falls back to stock `pcb7a34da5fe`. |
+| `TAVUS_FACE_ID` | Optional face override. Omit to use the PAL default face. |
+| `TAVUS_SETUP_TOKEN` | Optional guard for `POST /api/tavus/pal`. |
+| `LIVEKIT_*` / `TAVUS_LIVEKIT_PAL_ID` | Optional LiveKit worker. |
 
-Get a Tavus key in [PAL Maker](https://maker.tavus.io/dev/api-keys).
+Get a key in [PAL Maker](https://maker.tavus.io/dev/api-keys).
 
-## Docs used
+## Docs
 
-- [Tavus documentation index](https://docs.tavus.io/llms.txt)
+- [Tavus llms.txt](https://docs.tavus.io/llms.txt)
 - [API Conversation Quickstart](https://docs.tavus.io/sections/conversational-video-interface/quickstart/cvi-quickstart)
-- [LiveKit Agent](https://docs.tavus.io/sections/integrations/livekit)
+- [CVI App Quickstart](https://docs.tavus.io/sections/conversational-video-interface/quickstart/build-first-app)
+- [CVI UI component library](https://docs.tavus.io/sections/conversational-video-interface/component-library/overview)
 - [Tavus examples](https://github.com/Tavus-Engineering/tavus-examples)
-- [LiveKit Tavus plugin](https://docs.livekit.io/agents/models/avatar/plugins/tavus)
-
-## Scripts
-
-```bash
-npm run test
-npm run lint
-npm run typecheck
-```

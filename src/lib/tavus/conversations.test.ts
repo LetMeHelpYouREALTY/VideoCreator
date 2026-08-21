@@ -1,27 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import {
-  STOCK_ANNA_FACE_ID,
-  DEFAULT_CONVERSATION_NAME,
-  MAX_CONTEXT_CHARS,
-} from '@/config/tavus'
+import { DEFAULT_CONVERSATION_NAME, MAX_CONTEXT_CHARS } from '@/config/tavus'
 import {
   buildCreateConversationBody,
   sanitizeContext,
 } from '@/lib/tavus/conversations'
 
 describe('buildCreateConversationBody', () => {
-  it('requires pal_id', () => {
+  it('requires pal_id or face_id', () => {
     expect(() => buildCreateConversationBody({ palId: '   ' })).toThrow(
-      'pal_id is required',
+      'Provide pal_id, face_id, or both',
     )
   })
 
-  it('uses the documented stock Anna face when face_id is omitted', () => {
+  it('matches the API Conversation Quickstart pal_id-only body', () => {
     const body = buildCreateConversationBody({ palId: 'p_test' })
-    expect(body.pal_id).toBe('p_test')
-    expect(body.face_id).toBe(STOCK_ANNA_FACE_ID)
-    expect(body.conversation_name).toBe(DEFAULT_CONVERSATION_NAME)
-    expect(body.properties?.language).toBe('english')
+    expect(body).toEqual({
+      pal_id: 'p_test',
+      conversation_name: DEFAULT_CONVERSATION_NAME,
+    })
+    expect(body.face_id).toBeUndefined()
+  })
+
+  it('includes face_id only when provided', () => {
+    const body = buildCreateConversationBody({
+      palId: 'p_test',
+      faceId: 'r90bbd427f71',
+    })
+    expect(body.face_id).toBe('r90bbd427f71')
+  })
+
+  it('allows face_id without a PAL', () => {
+    const body = buildCreateConversationBody({ faceId: 'r90bbd427f71' })
+    expect(body.pal_id).toBeUndefined()
+    expect(body.face_id).toBe('r90bbd427f71')
+  })
+
+  it('sets test_mode for integration wiring', () => {
+    const body = buildCreateConversationBody({
+      palId: 'p_test',
+      testMode: true,
+    })
+    expect(body.test_mode).toBe(true)
   })
 
   it('trims optional listing context and drops empty strings', () => {

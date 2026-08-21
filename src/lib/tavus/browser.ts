@@ -4,6 +4,7 @@ type TavusAction = 'create' | 'end'
 
 export async function createTavusConversation(params?: {
   conversationalContext?: string
+  testMode?: boolean
 }): Promise<CreateConversationResponse> {
   const response = await fetch('/api/tavus', {
     method: 'POST',
@@ -11,6 +12,7 @@ export async function createTavusConversation(params?: {
     body: JSON.stringify({
       action: 'create' satisfies TavusAction,
       conversationalContext: params?.conversationalContext,
+      testMode: params?.testMode,
     }),
   })
 

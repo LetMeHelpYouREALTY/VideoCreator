@@ -11,6 +11,7 @@ export function StudioClient() {
   const [screen, setScreen] = useState<StudioScreen>('welcome')
   const [conversation, setConversation] = useState<CreateConversationResponse | null>(null)
   const [context, setContext] = useState('')
+  const [testMode, setTestMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -28,9 +29,34 @@ export function StudioClient() {
     try {
       const nextConversation = await createTavusConversation({
         conversationalContext: context,
+        testMode,
       })
-      setConversation(nextConversation)
-      setScreen('call')
+
+      switch (nextConversation.status) {
+        case 'active':
+          setConversation(nextConversation)
+          setScreen('call')
+          return
+        case 'ended':
+          setConversation(null)
+          setError(
+            testMode
+              ? `Test conversation ${nextConversation.conversation_id} created. status is ended; the PAL did not join.`
+              : 'Conversation ended before join.',
+          )
+          setScreen('welcome')
+          return
+        case 'error':
+          setConversation(null)
+          setError(`Tavus returned conversation status error (${nextConversation.conversation_id}).`)
+          setScreen('welcome')
+          return
+        default: {
+          const _exhaustive: never = nextConversation.status
+          setError(`Unknown conversation status: ${String(_exhaustive)}`)
+          setScreen('welcome')
+        }
+      }
     } catch (joinError) {
       setError(
         joinError instanceof Error
@@ -41,7 +67,7 @@ export function StudioClient() {
     } finally {
       setLoading(false)
     }
-  }, [context])
+  }, [context, testMode])
 
   switch (screen) {
     case 'welcome':
@@ -51,8 +77,8 @@ export function StudioClient() {
             Las Vegas listing video conversation
           </h1>
           <p className="mt-3 text-slate-700">
-            Check camera and mic, then join a Tavus CVI room. The PAL uses Phoenix
-            face r90bbd427f71 unless you set TAVUS_FACE_ID.
+            Check camera and mic, then join a Tavus CVI room. Step 2 creates a
+            conversation with pal_id only. Join uses the returned conversation_url.
           </p>
           <label className="mt-6 block text-sm font-medium text-slate-800" htmlFor="listing-context">
             Optional listing notes for this call
@@ -65,6 +91,14 @@ export function StudioClient() {
             onChange={(event) => setContext(event.target.value)}
             placeholder="Address, beds, baths, square footage, list price if verified."
           />
+          <label className="mt-4 flex items-center gap-2 text-sm text-slate-800">
+            <input
+              type="checkbox"
+              checked={testMode}
+              onChange={(event) => setTestMode(event.target.checked)}
+            />
+            Create in test mode (PAL does not join; no billing)
+          </label>
           {error ? (
             <p className="mt-3 text-sm text-red-700" role="alert">
               {error}

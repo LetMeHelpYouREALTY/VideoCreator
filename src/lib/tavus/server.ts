@@ -1,4 +1,5 @@
 import { TAVUS_API_BASE } from '@/config/tavus'
+import { TavusHttpError } from '@/lib/tavus/http-error'
 import type {
   CreateConversationRequest,
   CreateConversationResponse,
@@ -28,13 +29,17 @@ async function tavusFetch<T>(
     cache: 'no-store',
   })
 
-  if (!response.ok) {
-    const details = await response.text()
-    throw new Error(`Tavus API ${path} failed (${response.status}): ${details}`)
-  }
-
   if (response.status === 204) {
     return undefined as T
+  }
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new TavusHttpError(
+      `Tavus API ${path} failed (${response.status})`,
+      response.status,
+      details,
+    )
   }
 
   return (await response.json()) as T

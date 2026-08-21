@@ -28,10 +28,11 @@ export type CreatePalResponse = {
 
 export type CreateConversationRequest = {
   face_id?: string
-  pal_id: string
+  pal_id?: string
   conversation_name?: string
   conversational_context?: string
   custom_greeting?: string
+  test_mode?: boolean
   properties?: {
     max_call_duration?: number
     participant_left_timeout?: number

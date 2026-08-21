@@ -1,5 +1,6 @@
 import {
   FULL_PIPELINE_PAL_NAME,
+  INTERVIEWER_PAL_NAME,
   LIVEKIT_PAL_NAME,
   STOCK_ANNA_FACE_ID,
 } from '@/config/tavus'
@@ -39,6 +40,34 @@ export function buildFullPipelinePal(
     system_prompt: REALTOR_SYSTEM_PROMPT,
     pipeline_mode: 'full',
     context: REALTOR_CONTEXT,
+    default_face_id: faceId,
+    layers: {
+      perception: {
+        perception_model: 'raven-1',
+      },
+      conversational_flow: {
+        turn_detection_model: 'sparrow-1',
+        turn_taking_patience: 'high',
+        pal_interruptibility: 'medium',
+      },
+    },
+  }
+}
+
+/**
+ * Exact Interviewer PAL from the API Conversation Quickstart.
+ * @see https://docs.tavus.io/sections/conversational-video-interface/quickstart/cvi-quickstart
+ */
+export function buildInterviewerPal(
+  faceId: string = STOCK_ANNA_FACE_ID,
+): CreatePalRequest {
+  return {
+    pal_name: INTERVIEWER_PAL_NAME,
+    system_prompt:
+      'As an Interviewer, you are a skilled professional who conducts thoughtful and structured interviews. Your aim is to ask insightful questions, listen carefully, and assess responses objectively to identify the best candidates.',
+    pipeline_mode: 'full',
+    context:
+      'You have a track record of conducting interviews that put candidates at ease, draw out their strengths, and help organizations make excellent hiring decisions.',
     default_face_id: faceId,
     layers: {
       perception: {

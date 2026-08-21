@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { STOCK_ANNA_FACE_ID } from '@/config/tavus'
-import { buildFullPipelinePal, buildLiveKitEchoPal } from '@/lib/tavus/pals'
+import {
+  buildFullPipelinePal,
+  buildInterviewerPal,
+  buildLiveKitEchoPal,
+} from '@/lib/tavus/pals'
+import { TavusHttpError, statusForTavusError } from '@/lib/tavus/http-error'
 import { createPal } from '@/lib/tavus/server'
 
 export const revalidate = 0
 
-type PalKind = 'full' | 'livekit'
+type PalKind = 'full' | 'interviewer' | 'livekit'
 
 type CreatePalBody = {
   kind?: PalKind
@@ -19,11 +24,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json().catch(() => ({}))) as CreatePalBody
-    const kind: PalKind = body.kind ?? 'full'
+    const kind: PalKind = body.kind ?? 'interviewer'
     const faceId = process.env.TAVUS_FACE_ID?.trim() || STOCK_ANNA_FACE_ID
 
-    const payload = ((): ReturnType<typeof buildFullPipelinePal> => {
+    const payload = ((): ReturnType<typeof buildInterviewerPal> => {
       switch (kind) {
+        case 'interviewer':
+          return buildInterviewerPal(faceId)
         case 'full':
           return buildFullPipelinePal(faceId)
         case 'livekit':
@@ -42,6 +49,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to create PAL'
-    return NextResponse.json({ error: message }, { status: 502 })
+    const details = error instanceof TavusHttpError ? error.details : undefined
+    return NextResponse.json(
+      { error: message, details },
+      { status: statusForTavusError(error) },
+    )
   }
 }

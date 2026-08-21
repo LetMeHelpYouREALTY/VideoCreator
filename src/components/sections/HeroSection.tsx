@@ -13,9 +13,9 @@ export function HeroSection() {
             Talk through a listing with a live Tavus video avatar
           </h1>
           <p className="mt-4 max-w-xl text-lg text-slate-200">
-            VideoCreator starts a Tavus CVI conversation with face {''}
-            <code className="rounded bg-slate-800 px-1">r90bbd427f71</code>
-            {' '}and a Las Vegas real estate PAL. LiveKit can render the same face beside a voice agent.
+            Create a full-pipeline PAL, start a conversation with pal_id, then
+            join conversation_url. Stock Anna face r90bbd427f71. Call {SITE.phone}
+            for a live agent.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link

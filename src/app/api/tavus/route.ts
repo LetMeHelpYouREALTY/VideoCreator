@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { STOCK_ANNA_FACE_ID } from '@/config/tavus'
+import { DEFAULT_CUSTOM_GREETING, STOCK_SDR_PAL_ID } from '@/config/tavus'
 import { buildCreateConversationBody } from '@/lib/tavus/conversations'
+import { TavusHttpError, statusForTavusError } from '@/lib/tavus/http-error'
 import {
   createConversation,
   endConversation,
@@ -14,20 +15,19 @@ type TavusRouteBody = {
   action?: TavusRouteAction
   conversationId?: string
   conversationalContext?: string
+  testMode?: boolean
 }
 
-function jsonError(error: string, status: number) {
-  return NextResponse.json({ error }, { status })
+function jsonError(error: string, status: number, details?: string) {
+  return NextResponse.json({ error, details }, { status })
 }
 
-function assertConfiguredPalId(): string {
-  const palId = process.env.TAVUS_PAL_ID?.trim()
-  if (!palId) {
-    throw new Error(
-      'TAVUS_PAL_ID is not set. Create a full-pipeline PAL first, then add the pal_id to .env.local.',
-    )
-  }
-  return palId
+function configuredPalId(): string {
+  return process.env.TAVUS_PAL_ID?.trim() || STOCK_SDR_PAL_ID
+}
+
+function configuredFaceId(): string | undefined {
+  return process.env.TAVUS_FACE_ID?.trim() || undefined
 }
 
 export async function POST(request: NextRequest) {
@@ -37,12 +37,17 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'create': {
-        const palId = assertConfiguredPalId()
+        const palId = configuredPalId()
+        const faceId = configuredFaceId()
         const conversation = await createConversation(
           buildCreateConversationBody({
             palId,
-            faceId: process.env.TAVUS_FACE_ID?.trim() || STOCK_ANNA_FACE_ID,
+            faceId,
             conversationalContext: body.conversationalContext,
+            testMode: body.testMode,
+            customGreeting: process.env.TAVUS_PAL_ID?.trim()
+              ? DEFAULT_CUSTOM_GREETING
+              : undefined,
           }),
         )
         return NextResponse.json(conversation, {
@@ -64,9 +69,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to process Tavus request'
-    const status = message.includes('not configured') || message.includes('not set')
-      ? 500
-      : 502
-    return jsonError(message, status)
+    const details = error instanceof TavusHttpError ? error.details : undefined
+    return jsonError(message, statusForTavusError(error), details)
   }
 }
