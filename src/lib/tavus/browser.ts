@@ -1,18 +1,18 @@
 import type { CreateConversationResponse } from '@/lib/tavus/types'
 
-type TavusAction = 'create' | 'end'
-
 export async function createTavusConversation(params?: {
+  palId?: string
+  conversationName?: string
   conversationalContext?: string
   testMode?: boolean
 }): Promise<CreateConversationResponse> {
-  const response = await fetch('/api/tavus', {
+  const response = await fetch('/api/conversations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      action: 'create' satisfies TavusAction,
-      conversationalContext: params?.conversationalContext,
-      testMode: params?.testMode,
+      ...(params?.palId ? { pal_id: params.palId } : {}),
+      conversation_name: params?.conversationName,
+      ...(params?.testMode ? { test_mode: true } : {}),
     }),
   })
 
@@ -27,16 +27,11 @@ export async function createTavusConversation(params?: {
 }
 
 export async function endTavusConversation(conversationId: string): Promise<void> {
-  const response = await fetch('/api/tavus', {
+  const response = await fetch(`/api/conversations/${conversationId}/end`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'end' satisfies TavusAction,
-      conversationId,
-    }),
   })
 
-  if (!response.ok) {
+  if (!response.ok && response.status !== 204) {
     const payload = (await response.json().catch(() => null)) as
       | { error?: string }
       | null

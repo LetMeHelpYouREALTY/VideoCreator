@@ -38,9 +38,7 @@ export function buildCreateConversationBody(
     throw new Error('Provide pal_id, face_id, or both')
   }
 
-  const body: CreateConversationRequest = {
-    conversation_name: input.conversationName?.trim() || DEFAULT_CONVERSATION_NAME,
-  }
+  const body: CreateConversationRequest = {}
 
   if (palId) {
     body.pal_id = palId
@@ -49,6 +47,8 @@ export function buildCreateConversationBody(
   if (faceId) {
     body.face_id = faceId
   }
+
+  body.conversation_name = input.conversationName?.trim() || DEFAULT_CONVERSATION_NAME
 
   if (input.testMode) {
     body.test_mode = true

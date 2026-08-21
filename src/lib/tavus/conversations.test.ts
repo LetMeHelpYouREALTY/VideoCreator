@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CONVERSATION_NAME, MAX_CONTEXT_CHARS } from '@/config/tavus'
+import { MAX_CONTEXT_CHARS } from '@/config/tavus'
 import {
   buildCreateConversationBody,
   sanitizeContext,
@@ -13,12 +13,15 @@ describe('buildCreateConversationBody', () => {
   })
 
   it('matches the API Conversation Quickstart pal_id-only body', () => {
-    const body = buildCreateConversationBody({ palId: 'p_test' })
-    expect(body).toEqual({
-      pal_id: 'p_test',
-      conversation_name: DEFAULT_CONVERSATION_NAME,
+    const body = buildCreateConversationBody({
+      palId: '<your_pal_id>',
+      conversationName: 'Interview User',
     })
-    expect(body.face_id).toBeUndefined()
+    expect(body).toEqual({
+      pal_id: '<your_pal_id>',
+      conversation_name: 'Interview User',
+    })
+    expect(Object.keys(body)).toEqual(['pal_id', 'conversation_name'])
   })
 
   it('includes face_id only when provided', () => {

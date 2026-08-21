@@ -67,7 +67,19 @@ curl --request POST \
   }'
 ```
 
-The studio does the same through `POST /api/tavus`. If the PAL already has `default_face_id`, only `pal_id` is sent.
+The studio and `POST /api/conversations` send the same body. Paste the `pal_id` from Step 1 into `/studio`, or set `TAVUS_PAL_ID`.
+
+```bash
+curl --request POST \
+  --url http://localhost:3000/api/conversations \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "pal_id": "<your_pal_id>",
+    "conversation_name": "Interview User"
+  }'
+```
+
+The server adds the `x-api-key` header. The browser never sees the key.
 
 Use `test_mode: true` while wiring the integration. Tavus returns `status: "ended"` and the PAL does not join, so it does not count toward billing.
 
@@ -86,7 +98,7 @@ The create response includes the join URL:
 }
 ```
 
-`/studio` embeds that URL with `CVIProvider` + `Conversation` from the Tavus CVI UI examples. Leaving the call hits End Conversation.
+`/studio` embeds `conversation_url` with `CVIProvider` + `Conversation` and also shows the URL as a clickable link. Leaving the call hits `POST /api/conversations/:id/end`.
 
 ## Setup
 

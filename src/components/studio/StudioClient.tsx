@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react'
 import { HairCheck } from '@/components/cvi/components/hair-check'
 import { Conversation } from '@/components/cvi/components/conversation'
+import { DEFAULT_CONVERSATION_NAME } from '@/config/tavus'
 import { createTavusConversation, endTavusConversation } from '@/lib/tavus/browser'
 import type { CreateConversationResponse } from '@/lib/tavus/types'
 import type { StudioScreen } from '@/lib/tavus/types'
@@ -10,7 +11,8 @@ import type { StudioScreen } from '@/lib/tavus/types'
 export function StudioClient() {
   const [screen, setScreen] = useState<StudioScreen>('welcome')
   const [conversation, setConversation] = useState<CreateConversationResponse | null>(null)
-  const [context, setContext] = useState('')
+  const [palId, setPalId] = useState('')
+  const [conversationName, setConversationName] = useState(DEFAULT_CONVERSATION_NAME)
   const [testMode, setTestMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +30,8 @@ export function StudioClient() {
     setError(null)
     try {
       const nextConversation = await createTavusConversation({
-        conversationalContext: context,
+        palId,
+        conversationName,
         testMode,
       })
 
@@ -38,7 +41,7 @@ export function StudioClient() {
           setScreen('call')
           return
         case 'ended':
-          setConversation(null)
+          setConversation(nextConversation)
           setError(
             testMode
               ? `Test conversation ${nextConversation.conversation_id} created. status is ended; the PAL did not join.`
@@ -67,29 +70,38 @@ export function StudioClient() {
     } finally {
       setLoading(false)
     }
-  }, [context, testMode])
+  }, [conversationName, palId, testMode])
 
   switch (screen) {
     case 'welcome':
       return (
         <div className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
           <h1 className="text-3xl font-semibold text-slate-900">
-            Las Vegas listing video conversation
+            Create your conversation
           </h1>
           <p className="mt-3 text-slate-700">
-            Check camera and mic, then join a Tavus CVI room. Step 2 creates a
-            conversation with pal_id only. Join uses the returned conversation_url.
+            Step 2 posts pal_id and conversation_name. Step 3 joins
+            conversation_url with CVIProvider and Conversation.
           </p>
-          <label className="mt-6 block text-sm font-medium text-slate-800" htmlFor="listing-context">
-            Optional listing notes for this call
+          <label className="mt-6 block text-sm font-medium text-slate-800" htmlFor="pal-id">
+            PAL ID
           </label>
-          <textarea
-            id="listing-context"
+          <input
+            id="pal-id"
             className="mt-2 w-full rounded-md border border-slate-300 p-3 text-sm"
-            rows={5}
-            value={context}
-            onChange={(event) => setContext(event.target.value)}
-            placeholder="Address, beds, baths, square footage, list price if verified."
+            value={palId}
+            onChange={(event) => setPalId(event.target.value)}
+            placeholder="Paste pal_id from Step 1, or leave blank for TAVUS_PAL_ID"
+            autoComplete="off"
+          />
+          <label className="mt-4 block text-sm font-medium text-slate-800" htmlFor="conversation-name">
+            Conversation name
+          </label>
+          <input
+            id="conversation-name"
+            className="mt-2 w-full rounded-md border border-slate-300 p-3 text-sm"
+            value={conversationName}
+            onChange={(event) => setConversationName(event.target.value)}
           />
           <label className="mt-4 flex items-center gap-2 text-sm text-slate-800">
             <input
@@ -134,13 +146,26 @@ export function StudioClient() {
         )
       }
       return (
-        <div className="mx-auto h-[80vh] w-full max-w-5xl">
-          <Conversation
-            conversationUrl={conversation.conversation_url}
-            onLeave={() => {
-              void handleLeave()
-            }}
-          />
+        <div className="mx-auto w-full max-w-5xl">
+          <p className="mb-3 text-sm text-slate-700">
+            Join URL:{' '}
+            <a
+              className="break-all underline"
+              href={conversation.conversation_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {conversation.conversation_url}
+            </a>
+          </p>
+          <div className="h-[80vh]">
+            <Conversation
+              conversationUrl={conversation.conversation_url}
+              onLeave={() => {
+                void handleLeave()
+              }}
+            />
+          </div>
         </div>
       )
     default: {
